@@ -21,14 +21,13 @@ router.on /new\s([\w]+)/i, (name) ->
 			dependencies:
 				'jmars/sockrpc':'*'
 				'jmars/dustjs':'*'
-				'visionmedia/page.js':'*'
 		'package.json': JSON.stringify
 			author: ''
 			name: name
 			description: ''
 			version: '0.0.1'
 			dependencies:
-				portmanteau: ''
+				portmanteau: 'https://github.com/jmars/portmanteau/tarball/master'
 				express: ''
 				stylus: ''
 				nib: ''

@@ -28,5 +28,8 @@
     },
   "devDependencies":{
     "mocha":"*"
+  },
+  "bin": {
+    "port":"bin/portmanteau"
   }
 }
