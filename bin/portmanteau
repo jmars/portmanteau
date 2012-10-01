@@ -21,8 +21,7 @@ router.on(/new\s([\w]+)/i, function(name) {
       name: name,
       dependencies: {
         'jmars/sockrpc': '*',
-        'jmars/dustjs': '*',
-        'visionmedia/page.js': '*'
+        'jmars/dustjs': '*'
       }
     }),
     'package.json': JSON.stringify({
@@ -31,7 +30,7 @@ router.on(/new\s([\w]+)/i, function(name) {
       description: '',
       version: '0.0.1',
       dependencies: {
-        portmanteau: '',
+        portmanteau: 'https://github.com/jmars/portmanteau/tarball/master',
         express: '',
         stylus: '',
         nib: '',
