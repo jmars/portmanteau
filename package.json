@@ -1,0 +1,32 @@
+{
+  "name": "portmanteau",
+  "version": "0.1.0",
+  "description": "Unification",
+  "main": "index.js",
+  "scripts": {
+    "test": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jmars/portmanteau.git#master"
+  },
+  "author": "Jaye Marshall",
+  "license": "BSD",
+  "dependencies": {
+    "contextify":"",
+    "remote":"https://github.com/jmars/remote/tarball/master",
+    "express":">=3.x.x",
+    "fibers":"",
+    "domino":"https://github.com/jmars/domino/tarball/master",
+    "underscore":"",
+    "sockjs":"",
+    "es6-collections":"",
+    "request":"",
+    "node-proxy":"",
+    "uglify-js":"",
+    "director":""
+    },
+  "devDependencies":{
+    "mocha":"*"
+  }
+}
