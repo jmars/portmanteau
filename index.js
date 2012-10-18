@@ -121,6 +121,7 @@ Portmanteau = (function() {
     if (req != null) {
       context.location = url.parse('http://' + req.headers.host + req.url + '#');
       context.location.search = '';
+      context.document.location = context.location;
     }
     context.run(requirejs_source);
     context.require.load = this.loadScript;
