@@ -49,6 +49,7 @@ Portmanteau = (function() {
   Portmanteau.prototype.loadScript = function(context, moduleName, url) {
     var environment, future, location, source,
       _this = this;
+    if (url[0] === '/') url = url.slice(1);
     location = path.resolve(this.dir, url);
     future = new Future;
     fs.readFile(location, 'utf8', function(err, data) {
@@ -188,6 +189,15 @@ Portmanteau = (function() {
           }
         }
         return res.send(data);
+      });
+    });
+    this.server.get('/components/*', function(req, res, next) {
+      var script;
+      script = req.params[0];
+      return fs.readFile(path.join(_this.dir, 'components', script), 'utf8', function(err, data) {
+        var deps;
+        deps = ['require', 'exports', 'module'];
+        res.send("define(" + (JSON.stringify(deps)) + ", function(require, exports, module){var define = undefined; " + data + " ; return exports})");
       });
     });
     return this.server.use(function(req, res, next) {

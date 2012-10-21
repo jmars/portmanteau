@@ -27,9 +27,11 @@ class Portmanteau
 		@packages = []
 
 	loadScript: (context, moduleName, url) =>
+		if url[0] is '/'
+			url = url[1...]
 		location = path.resolve @dir, url
 		future = new Future
-		fs.readFile location, 'utf8', (err, data) => 
+		fs.readFile location, 'utf8', (err, data) =>
 			if err
 				future.throw err
 			else
@@ -120,6 +122,12 @@ class Portmanteau
 						res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
 						return
 				res.send data
+		@server.get '/components/*', (req, res, next) =>
+			script = req.params[0]
+			fs.readFile path.join(@dir, 'components', script), 'utf8', (err, data) =>
+				deps = ['require', 'exports', 'module']
+				res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
+				return
 		@server.use (req, res, next) =>
 			Fiber =>
 				context = @createContext req, res, next
