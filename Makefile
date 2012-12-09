@@ -1,5 +1,5 @@
 all:
-	rm -rf bin && iced -cb -o . src && echo "#!/usr/bin/env node" | cat - bin/portmanteau.js > bin/portmanteau && rm bin/portmanteau.js
+	rm -rf bin && iced -I inline -cb -o . src && echo "#!/usr/bin/env node" | cat - bin/portmanteau.js > bin/portmanteau && rm bin/portmanteau.js
 
 test:
 	./node_modules/.bin/mocha --reporter spec

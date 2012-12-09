@@ -14,17 +14,15 @@
   "license": "BSD",
   "dependencies": {
     "contextify":"",
-    "remote":"https://github.com/jmars/remote/tarball/master",
     "express":">=3.x.x",
-    "fibers":"",
     "domino":"https://github.com/jmars/domino/tarball/master",
     "underscore":"",
     "sockjs":"",
     "es6-collections":"",
     "request":"",
-    "node-proxy":"",
     "uglify-js":"",
-    "director":""
+    "director":"",
+    "eventemitter2":""
     },
   "devDependencies":{
     "mocha":"*"

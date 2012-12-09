@@ -1,15 +1,15 @@
 Contextify = require 'contextify'
-{wrap, wait} = Future = require 'fibers/future'
 express = require 'express'
 domino = require 'domino'
 path = require 'path'
 fs = require 'fs'
 _ = require 'underscore'
 url = require 'url'
-Remote = require 'remote'
-request = require 'request'
 sockjs = require 'sockjs'
 {Map, WeakMap, Set} = require 'es6-collections'
+{EventEmitter2} = require 'eventemitter2'
+shoe = require 'shoe'
+dnode = require 'dnode'
 
 requirejs_source = fs.readFileSync "#{__dirname}/client/require.js", 'utf8'
 almondjs_source = fs.readFileSync "#{__dirname}/client/almond.js", 'utf8'
@@ -18,6 +18,17 @@ if process.env.NODE_ENV is 'production'
 	requirejs_source = minify requirejs_source
 	almondjs_source = minify almondjs_source
 
+class wsclient
+	constructor: (location) ->
+		#@dnode = dnode @root.RPC
+		#@dnode.on 'data', (d) => @write d
+	send: (data) ->
+		#@dnode.write data
+	write: (data) ->
+		#@onmessage data:data
+wsclient::__defineSetter__ 'onopen', (f) -> process.nextTick -> do f
+
+# HANDLER
 class Portmanteau
 	constructor: ->
 		@server = express()
@@ -26,32 +37,22 @@ class Portmanteau
 		@components = {}
 		@packages = []
 
-	loadScript: (context, moduleName, url) =>
+	loadScript: (req) => (context, moduleName, url) =>
 		if url[0] is '/'
 			url = url[1...]
 		location = path.resolve @dir, url
-		future = new Future
-		fs.readFile location, 'utf8', (err, data) =>
-			if err
-				future.throw err
-			else
-				if url.indexOf('components') isnt -1
-					future.return "define(function(require, exports, module){var define = undefined; #{data} ; return exports})"
-				else
-					future.return data
-		source = future.wait()
-		environment = @Contexts.get Fiber.current
+		await fs.exists location, defer exists
+		if !exists then throw new Error "#{location} does not exist"
+		await fs.readFile location, 'utf8', defer err, source
+		if url.indexOf('components') isnt -1
+			source = "define(function(require, exports, module){var define = undefined; #{source} ; return exports})"
+		environment = @Contexts.get req
 		environment.run source
 		context.completeLoad moduleName
 
 	createContext: (req, res, next) ->
-		if !@layout?
-			html = '<!DOCTYPE html>'
-		else
-			future = new Future
-			@layout req, res, next, (err, html) -> future.return html
-			html = future.wait()
-		context = Contextify domino.createWindow html
+		context = Contextify domino.createWindow '<!DOCTYPE html>'
+		context.Element = require('domino/lib/element')
 		context.SERVER =
 			res:res
 			req:req
@@ -67,28 +68,30 @@ class Portmanteau
 		context.addEventListener = (event, cb) ->
 			if event is 'DOMContentLoaded' then cb() else return
 		context.setTimeout = (func, delay) ->
-			future = new Future
 			if delay is 0
 				timer = process.nextTick
 			else
 				timer = setTimeout
 			timer ->
-				future.return()
+				func()
 			, delay
-			future.wait()
-			func()
+		context.clearTimeout = clearTimeout
 		context.window = context
-		context.WebSocket = @wsclient
+		self = this
+		context.WebSocket = class wsconnection extends wsclient
+			constructor: ->
+				@root = self
+				super
 		if req?
 			context.location = url.parse 'http://' + req.headers.host + req.url + '#'
 			context.location.search = ''
 			context.document.location = context.location
 		context.run requirejs_source
-		context.require.load = @loadScript
-		@Contexts.set Fiber.current, context
+		context.require.load = @loadScript req
+		@Contexts.set req, context
 		return context
 
-	RPC: {}
+	RCE: null
 
 	setupPackages: (json) ->
 		for name, version of json.dependencies then do =>
@@ -115,13 +118,16 @@ class Portmanteau
 			script = req.params[0]
 			extension = path.extname script
 			name = script.replace extension, ''
-			fs.readFile path.join(@dir, script), 'utf8', (err, data) =>
-				for pack in @packages
-					if pack.location is path.dirname(script)
-						deps = ['require', 'exports', 'module'].concat pack.dependencies
-						res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
-						return
-				res.send data
+			fs.exists path.join(@dir, script), (exists) =>
+				if !exists
+					console.error "#{script} doesnt exist"
+				fs.readFile path.join(@dir, script), 'utf8', (err, data) =>
+					for pack in @packages
+						if pack.location is path.dirname(script)
+							deps = ['require', 'exports', 'module'].concat pack.dependencies
+							res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
+							return
+					res.send data
 		@server.get '/components/*', (req, res, next) =>
 			script = req.params[0]
 			fs.readFile path.join(@dir, 'components', script), 'utf8', (err, data) =>
@@ -129,49 +135,18 @@ class Portmanteau
 				res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
 				return
 		@server.use (req, res, next) =>
-			Fiber =>
-				context = @createContext req, res, next
-				mods = context.require.s.newContext()
-				mods.configure packages:@packages
-				mods.require ['main'], ->
-				{current} = Fiber
-				if !res.ended
-					res.end context.document.innerHTML, =>
-						@Contexts.delete current
-						current.reset()
-						current = {}
-				else
-					@Contexts.delete current
-					current.reset()
-					current = {}
-			.run()
+			context = @createContext req, res, next
+			mods = context.require.s.newContext()
+			mods.configure packages:@packages
+			mods.require ['main'], ->
+			res.once 'end', => @Contexts.del req
 
 	listen: ->
 		handle = @server.listen.apply @server, arguments
 		socket = sockjs.createServer()
-		do =>
-			RPC = @RPC
-			class wsclient
-				constructor: (location) ->
-					self = @
-					@data = ''
-					@port = send: (message) ->
-						self.data = message
-						self.future.return()
-					Remote @port, RPC, []
-				send: (data) ->
-					@future = new Future
-					@port.recieve data
-					@future.wait()
-					@onmessage data:@data
-			wsclient::__defineSetter__ 'onopen', (f) -> do f
-			@wsclient = wsclient
 		socket.on 'connection', (ws) =>
-			port = send: (message) -> ws.write message
-			ws.on 'data', (data) -> port.recieve data
-			ws.on 'close', -> port.close()
-			Remote port, @RPC, []
-			port.open()
+			ws.on 'data', (data) =>
+			ws.on 'close', =>
 		socket.installHandlers handle, prefix: '/socket'
 
 module.exports = Portmanteau
