@@ -9,7 +9,8 @@ sockjs = require 'sockjs'
 {Map, WeakMap, Set} = require 'es6-collections'
 {EventEmitter2} = require 'eventemitter2'
 shoe = require 'shoe'
-dnode = require 'dnode'
+WebSocket = require 'ws'
+domain = require 'domain'
 
 requirejs_source = fs.readFileSync "#{__dirname}/client/require.js", 'utf8'
 almondjs_source = fs.readFileSync "#{__dirname}/client/almond.js", 'utf8'
@@ -17,16 +18,6 @@ almondjs_source = fs.readFileSync "#{__dirname}/client/almond.js", 'utf8'
 if process.env.NODE_ENV is 'production'
 	requirejs_source = minify requirejs_source
 	almondjs_source = minify almondjs_source
-
-class wsclient
-	constructor: (location) ->
-		#@dnode = dnode @root.RPC
-		#@dnode.on 'data', (d) => @write d
-	send: (data) ->
-		#@dnode.write data
-	write: (data) ->
-		#@onmessage data:data
-wsclient::__defineSetter__ 'onopen', (f) -> process.nextTick -> do f
 
 # HANDLER
 class Portmanteau
@@ -78,10 +69,7 @@ class Portmanteau
 		context.clearTimeout = clearTimeout
 		context.window = context
 		self = this
-		context.WebSocket = class wsconnection extends wsclient
-			constructor: ->
-				@root = self
-				super
+		context.WebSocket = (uri) -> new WebSocket 'ws://localhost:3000/socket/websocket'
 		if req?
 			context.location = url.parse 'http://' + req.headers.host + req.url + '#'
 			context.location.search = ''
@@ -90,8 +78,6 @@ class Portmanteau
 		context.require.load = @loadScript req
 		@Contexts.set req, context
 		return context
-
-	RCE: null
 
 	setupPackages: (json) ->
 		for name, version of json.dependencies then do =>
@@ -135,18 +121,19 @@ class Portmanteau
 				res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
 				return
 		@server.use (req, res, next) =>
-			context = @createContext req, res, next
-			mods = context.require.s.newContext()
-			mods.configure packages:@packages
-			mods.require ['main'], ->
-			res.once 'end', => @Contexts.del req
+			d = domain.create()
+			d.on 'error', (e) ->
+				console.error "Error on request: #{e}"
+			d.run =>
+				context = @createContext req, res, next
+				mods = context.require.s.newContext()
+				mods.configure packages:@packages
+				mods.require ['main'], ->
+				res.once 'end', => @Contexts.del req
 
 	listen: ->
 		handle = @server.listen.apply @server, arguments
-		socket = sockjs.createServer()
-		socket.on 'connection', (ws) =>
-			ws.on 'data', (data) =>
-			ws.on 'close', =>
-		socket.installHandlers handle, prefix: '/socket'
+		sock = shoe (@Stream or ->)
+		sock.install handle, '/socket'
 
 module.exports = Portmanteau
