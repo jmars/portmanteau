@@ -231,111 +231,27 @@ Portmanteau = (function() {
     this.server.get('/require.js', function(req, res, next) {
       return res.send(requirejs_source + ("require.config({packages:" + (JSON.stringify(_this.packages)) + ", baseUrl:'/requirejs'})"));
     });
-    /*
-    		@server.get '/requirejs/*', (req, res, next) =>
-    			script = req.params[0]
-    			extension = path.extname script
-    			name = script.replace extension, ''
-    			fs.exists path.join(@dir, script), (exists) =>
-    				if !exists
-    					console.error "#{script} doesnt exist"
-    				fs.readFile path.join(@dir, script), 'utf8', (err, data) =>
-    					for pack in @packages
-    						if pack.location is path.dirname(script)
-    							deps = ['require', 'exports', 'module'].concat pack.dependencies
-    							res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
-    							return
-    					res.send data
-    */
-
     this.server.get('/requirejs/*', function(req, res, next) {
-      var environment, extension, name, pack, script;
+      var extension, name, script;
       script = req.params[0];
       extension = path.extname(script);
       name = script.replace(extension, '');
-      environment = Contextify({});
-      pack = '';
-      environment.define = function(name, deps, callback) {
-        var dep, err, location, source, ___iced_passed_deferral, __iced_deferrals, __iced_k, _i, _len, _ref1, _results, _while;
-        __iced_k = __iced_k_noop;
-        ___iced_passed_deferral = iced.findDeferral(arguments);
-        console.log(name, deps, callback);
-        if (typeof name === 'object') {
-          callback = deps;
-          deps = name;
-        }
-        _ref1 = deps;
-        _len = _ref1.length;
-        _i = 0;
-        _results = [];
-        _while = function(__iced_k) {
-          var _break, _continue, _next;
-          _break = function() {
-            return __iced_k(_results);
-          };
-          _continue = function() {
-            ++_i;
-            return _while(__iced_k);
-          };
-          _next = function(__iced_next_arg) {
-            _results.push(__iced_next_arg);
-            return _continue();
-          };
-          if (!(_i < _len)) {
-            return _break();
-          } else {
-            dep = _ref1[_i];
-            if (dep[0] === '/') dep = dep.slice(1);
-            location = path.resolve(_this.dir, dep);
-            if (location.indexOf('.js') === -1) location += '.js';
-            (function(__iced_k) {
-              __iced_deferrals = new iced.Deferrals(__iced_k, {
-                parent: ___iced_passed_deferral,
-                filename: "src/index.iced",
-                funcname: "define"
-              });
-              fs.readFile(location, 'utf8', __iced_deferrals.defer({
-                assign_fn: (function() {
-                  return function() {
-                    err = arguments[0];
-                    return source = arguments[1];
-                  };
-                })(),
-                lineno: 134
-              }));
-              __iced_deferrals._fulfill();
-            })(function() {
-              if (err) throw err;
-              environment.run(source);
-              return _next(pack += source + ';\n');
-            });
+      return fs.exists(path.join(_this.dir, script), function(exists) {
+        if (!exists) console.error("" + script + " doesnt exist");
+        return fs.readFile(path.join(_this.dir, script), 'utf8', function(err, data) {
+          var deps, pack, _i, _len, _ref1;
+          _ref1 = _this.packages;
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            pack = _ref1[_i];
+            if (pack.location === path.dirname(script)) {
+              deps = ['require', 'exports', 'module'].concat(pack.dependencies);
+              res.send("define(" + (JSON.stringify(deps)) + ", function(require, exports, module){var define = undefined; " + data + " ; return exports})");
+              return;
+            }
           }
-        };
-        _while(__iced_k);
-      };
-      return environment.define([name], function() {
-        return res.send(pack);
+          return res.send(data);
+        });
       });
-      /*
-      			environment.run requirejs_source
-      			mods = environment.require.s.newContext()
-      			mods.configure packages:@packages
-      			deps = ''
-      			environment.require.load = (context, moduleName, url) =>
-      				console.log moduleName
-      				if url[0] is '/'
-      					url = url[1...]
-      				location = path.resolve @dir, url
-      				await fs.exists location, defer exists
-      				if !exists then throw new Error "#{location} does not exist"
-      				await fs.readFile location, 'utf8', defer err, source
-      				environment.run source
-      				context.completeLoad moduleName
-      				deps += source
-      			environment.CALLBACK = -> res.send deps
-      			environment.run "define(['#{name}'], CALLBACK);"
-      */
-
     });
     this.server.get('/components/*', function(req, res, next) {
       var script;
