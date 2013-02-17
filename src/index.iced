@@ -27,14 +27,23 @@ class Portmanteau
 		@packages = []
 
 	loadScript: (req) => (context, moduleName, url) =>
+		console.log(moduleName)
 		if url[0] is '/'
 			url = url[1...]
 		location = path.resolve @dir, url
 		await fs.exists location, defer exists
 		if !exists then throw new Error "#{location} does not exist"
 		await fs.readFile location, 'utf8', defer err, source
-		if url.indexOf('components') isnt -1
-			source = "define(function(require, exports, module){var define = undefined; #{source} ; return exports})"
+		if (url.indexOf('components') isnt -1) and source.indexOf('define(') is -1
+			deps = ['require', 'exports', 'module']
+			for pack in @config.packages
+				if pack.name is moduleName and pack.dependencies?
+					deps = deps.concat(pack.dependencies)
+					break
+			if @config?.shim?[moduleName]?.export?
+				source = source + "define(#{@config.shim[moduleName].export})"
+			else
+				source = "define(#{JSON.stringify(deps)}, function(require, exports, module){var define = undefined; #{source} ; return})"
 		environment = @Contexts.get req
 		environment.run source
 		context.completeLoad moduleName
@@ -80,19 +89,37 @@ class Portmanteau
 	setupPackages: (json) ->
 		for name, version of json.dependencies then do =>
 			child = require path.join @dir, 'components', name, 'component.json'
-			subdir = path.dirname child.scripts[0]
+			if child.scripts?[0]?
+				subdir = path.dirname child.scripts[0]
+			else if child.main?
+				subdir = path.dirname child.main
+			else
+				subdir = ''
 			obj =
 				name: name
 				location: path.join 'components', name, subdir
-				main: path.basename child.scripts[0]
+				main: (if child.scripts?[0]?
+					path.basename child.scripts[0]
+				else if child.main?
+					path.basename child.main
+				else if @config.shim?[name]?.main?
+					@config.shim[name].main
+				else
+					'index.js'
+				)
 				dependencies: []
 			@packages.push obj
-			for key, val of child.dependencies then obj.dependencies.push key.split('/')[1]
+			for key, val of child.dependencies then obj.dependencies.push key
+			if @config.shim[name]? and @config.shim[name].deps?
+				for key in @config.shim[name].deps
+					obj.dependencies.push(key) if !child?.dependencies?[key]?
 			@setupPackages child
 
 	load: (@dir) ->
 		@scripts = express.static @dir
+		@config = require path.join @dir, 'config.json'
 		@setupPackages require path.join @dir, 'component.json'
+		@config = _(@config).extend(packages:@packages)
 		@server.get '/require.js', (req, res, next) =>
 			res.send requirejs_source + "require.config({packages:#{JSON.stringify @packages}, baseUrl:'/requirejs'})"
 		@server.get '/requirejs/*', (req, res, next) =>
@@ -121,10 +148,11 @@ class Portmanteau
 			d = domain.create()
 			d.on 'error', (e) ->
 				console.error "Error on request: #{e}"
+				console.error e.stack
 			d.run =>
 				context = @createContext req, res, next
 				mods = context.require.s.newContext()
-				mods.configure packages:@packages
+				mods.configure @config
 				mods.require ['main'], ->
 				res.once 'end', => @Contexts.del req
 

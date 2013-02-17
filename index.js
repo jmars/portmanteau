@@ -86,9 +86,10 @@ Portmanteau = (function() {
   Portmanteau.prototype.loadScript = function(req) {
     var _this = this;
     return function(context, moduleName, url) {
-      var environment, err, exists, location, source, ___iced_passed_deferral, __iced_deferrals, __iced_k;
+      var deps, environment, err, exists, location, pack, source, ___iced_passed_deferral, __iced_deferrals, __iced_k;
       __iced_k = __iced_k_noop;
       ___iced_passed_deferral = iced.findDeferral(arguments);
+      console.log(moduleName);
       if (url[0] === '/') url = url.slice(1);
       location = path.resolve(_this.dir, url);
       (function(__iced_k) {
@@ -102,7 +103,7 @@ Portmanteau = (function() {
               return exists = arguments[0];
             };
           })(),
-          lineno: 33
+          lineno: 34
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -119,12 +120,26 @@ Portmanteau = (function() {
                 return source = arguments[1];
               };
             })(),
-            lineno: 35
+            lineno: 36
           }));
           __iced_deferrals._fulfill();
         })(function() {
-          if (url.indexOf('components') !== -1) {
-            source = "define(function(require, exports, module){var define = undefined; " + source + " ; return exports})";
+          var _i, _len, _ref1, _ref2, _ref3, _ref4;
+          if ((url.indexOf('components') !== -1) && source.indexOf('define(') === -1) {
+            deps = ['require', 'exports', 'module'];
+            _ref1 = _this.config.packages;
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              pack = _ref1[_i];
+              if (pack.name === moduleName && (pack.dependencies != null)) {
+                deps = deps.concat(pack.dependencies);
+                break;
+              }
+            }
+            if (((_ref2 = _this.config) != null ? (_ref3 = _ref2.shim) != null ? (_ref4 = _ref3[moduleName]) != null ? _ref4["export"] : void 0 : void 0 : void 0) != null) {
+              source = source + ("define(" + _this.config.shim[moduleName]["export"] + ")");
+            } else {
+              source = "define(" + (JSON.stringify(deps)) + ", function(require, exports, module){var define = undefined; " + source + " ; return})";
+            }
           }
           environment = _this.Contexts.get(req);
           environment.run(source);
@@ -196,20 +211,35 @@ Portmanteau = (function() {
     for (name in _ref1) {
       version = _ref1[name];
       _results.push((function() {
-        var child, key, obj, subdir, val, _ref2;
+        var child, key, obj, subdir, val, _i, _len, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
         child = require(path.join(_this.dir, 'components', name, 'component.json'));
-        subdir = path.dirname(child.scripts[0]);
+        if (((_ref2 = child.scripts) != null ? _ref2[0] : void 0) != null) {
+          subdir = path.dirname(child.scripts[0]);
+        } else if (child.main != null) {
+          subdir = path.dirname(child.main);
+        } else {
+          subdir = '';
+        }
         obj = {
           name: name,
           location: path.join('components', name, subdir),
-          main: path.basename(child.scripts[0]),
+          main: (((_ref3 = child.scripts) != null ? _ref3[0] : void 0) != null ? path.basename(child.scripts[0]) : child.main != null ? path.basename(child.main) : ((_ref4 = _this.config.shim) != null ? (_ref5 = _ref4[name]) != null ? _ref5.main : void 0 : void 0) != null ? _this.config.shim[name].main : 'index.js'),
           dependencies: []
         };
         _this.packages.push(obj);
-        _ref2 = child.dependencies;
-        for (key in _ref2) {
-          val = _ref2[key];
-          obj.dependencies.push(key.split('/')[1]);
+        _ref6 = child.dependencies;
+        for (key in _ref6) {
+          val = _ref6[key];
+          obj.dependencies.push(key);
+        }
+        if ((_this.config.shim[name] != null) && (_this.config.shim[name].deps != null)) {
+          _ref7 = _this.config.shim[name].deps;
+          for (_i = 0, _len = _ref7.length; _i < _len; _i++) {
+            key = _ref7[_i];
+            if (!((child != null ? (_ref8 = child.dependencies) != null ? _ref8[key] : void 0 : void 0) != null)) {
+              obj.dependencies.push(key);
+            }
+          }
         }
         return _this.setupPackages(child);
       })());
@@ -221,7 +251,11 @@ Portmanteau = (function() {
     var _this = this;
     this.dir = dir;
     this.scripts = express["static"](this.dir);
+    this.config = require(path.join(this.dir, 'config.json'));
     this.setupPackages(require(path.join(this.dir, 'component.json')));
+    this.config = _(this.config).extend({
+      packages: this.packages
+    });
     this.server.get('/require.js', function(req, res, next) {
       return res.send(requirejs_source + ("require.config({packages:" + (JSON.stringify(_this.packages)) + ", baseUrl:'/requirejs'})"));
     });
@@ -243,7 +277,7 @@ Portmanteau = (function() {
               return exists = arguments[0];
             };
           })(),
-          lineno: 102
+          lineno: 129
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -260,7 +294,7 @@ Portmanteau = (function() {
                 return data = arguments[1];
               };
             })(),
-            lineno: 105
+            lineno: 132
           }));
           __iced_deferrals._fulfill();
         })(function() {
@@ -298,7 +332,7 @@ Portmanteau = (function() {
               return data = arguments[1];
             };
           })(),
-          lineno: 116
+          lineno: 143
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -310,15 +344,14 @@ Portmanteau = (function() {
       var d;
       d = domain.create();
       d.on('error', function(e) {
-        return console.error("Error on request: " + e);
+        console.error("Error on request: " + e);
+        return console.error(e.stack);
       });
       return d.run(function() {
         var context, mods;
         context = _this.createContext(req, res, next);
         mods = context.require.s.newContext();
-        mods.configure({
-          packages: _this.packages
-        });
+        mods.configure(_this.config);
         mods.require(['main'], function() {});
         return res.once('end', function() {
           return _this.Contexts.del(req);
