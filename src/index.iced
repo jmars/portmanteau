@@ -25,7 +25,6 @@ class Portmanteau
 		@server = express()
 		@Contexts = new WeakMap
 		@cache = {}
-		@components = {}
 		@packages = []
 
 	loadScript: (req) => (context, moduleName, url) =>
@@ -90,9 +89,8 @@ class Portmanteau
 				location: path.join 'components', location, subdir
 				main: path.basename child.scripts[0]
 				dependencies: []
-			length = @packages.push obj
+			@packages.push obj
 			for key, val of child.dependencies then obj.dependencies.push key.split('/')[1]
-			@components[name] = length-1
 			@setupPackages child
 
 	load: (@dir) ->
@@ -104,22 +102,24 @@ class Portmanteau
 			script = req.params[0]
 			extension = path.extname script
 			name = script.replace extension, ''
-			fs.exists path.join(@dir, script), (exists) =>
-				if !exists
-					console.error "#{script} doesnt exist"
-				fs.readFile path.join(@dir, script), 'utf8', (err, data) =>
-					for pack in @packages
-						if pack.location is path.dirname(script)
-							deps = ['require', 'exports', 'module'].concat pack.dependencies
-							res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
-							return
-					res.send data
+			await fs.exists path.join(@dir, script), defer exists
+			if !exists
+				console.error "#{script} doesnt exist"
+			await fs.readFile path.join(@dir, script), 'utf8', defer err, data
+			for pack in @packages
+				if pack.location is path.dirname(script)
+					deps = ['require', 'exports', 'module'].concat pack.dependencies
+					res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
+					return
+			if data.indexOf('define(') is -1
+				data = "define(require, exports, module, function(){ #{data} })"
+			res.send data
 		@server.get '/components/*', (req, res, next) =>
 			script = req.params[0]
-			fs.readFile path.join(@dir, 'components', script), 'utf8', (err, data) =>
-				deps = ['require', 'exports', 'module']
-				res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
-				return
+			await fs.readFile path.join(@dir, 'components', script), 'utf8', defer err, data
+			deps = ['require', 'exports', 'module']
+			res.send "define(#{JSON.stringify deps}, function(require, exports, module){var define = undefined; #{data} ; return exports})"
+			return
 		@server.use (req, res, next) =>
 			d = domain.create()
 			d.on 'error', (e) ->

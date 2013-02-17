@@ -82,7 +82,6 @@ Portmanteau = (function() {
     this.server = express();
     this.Contexts = new WeakMap;
     this.cache = {};
-    this.components = {};
     this.packages = [];
   }
 
@@ -105,7 +104,7 @@ Portmanteau = (function() {
               return exists = arguments[0];
             };
           })(),
-          lineno: 35
+          lineno: 34
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -122,7 +121,7 @@ Portmanteau = (function() {
                 return source = arguments[1];
               };
             })(),
-            lineno: 37
+            lineno: 36
           }));
           __iced_deferrals._fulfill();
         })(function() {
@@ -199,7 +198,7 @@ Portmanteau = (function() {
     for (name in _ref1) {
       version = _ref1[name];
       _results.push((function() {
-        var child, key, length, location, obj, subdir, val, _ref2;
+        var child, key, location, obj, subdir, val, _ref2;
         location = name.replace('/', '-');
         name = name.split('/')[1];
         child = require(path.join(_this.dir, 'components', location, 'component.json'));
@@ -210,13 +209,12 @@ Portmanteau = (function() {
           main: path.basename(child.scripts[0]),
           dependencies: []
         };
-        length = _this.packages.push(obj);
+        _this.packages.push(obj);
         _ref2 = child.dependencies;
         for (key in _ref2) {
           val = _ref2[key];
           obj.dependencies.push(key.split('/')[1]);
         }
-        _this.components[name] = length - 1;
         return _this.setupPackages(child);
       })());
     }
@@ -232,14 +230,45 @@ Portmanteau = (function() {
       return res.send(requirejs_source + ("require.config({packages:" + (JSON.stringify(_this.packages)) + ", baseUrl:'/requirejs'})"));
     });
     this.server.get('/requirejs/*', function(req, res, next) {
-      var extension, name, script;
+      var data, deps, err, exists, extension, name, pack, script, ___iced_passed_deferral, __iced_deferrals, __iced_k;
+      __iced_k = __iced_k_noop;
+      ___iced_passed_deferral = iced.findDeferral(arguments);
       script = req.params[0];
       extension = path.extname(script);
       name = script.replace(extension, '');
-      return fs.exists(path.join(_this.dir, script), function(exists) {
+      (function(__iced_k) {
+        __iced_deferrals = new iced.Deferrals(__iced_k, {
+          parent: ___iced_passed_deferral,
+          filename: "src/index.iced"
+        });
+        fs.exists(path.join(_this.dir, script), __iced_deferrals.defer({
+          assign_fn: (function() {
+            return function() {
+              return exists = arguments[0];
+            };
+          })(),
+          lineno: 105
+        }));
+        __iced_deferrals._fulfill();
+      })(function() {
         if (!exists) console.error("" + script + " doesnt exist");
-        return fs.readFile(path.join(_this.dir, script), 'utf8', function(err, data) {
-          var deps, pack, _i, _len, _ref1;
+        (function(__iced_k) {
+          __iced_deferrals = new iced.Deferrals(__iced_k, {
+            parent: ___iced_passed_deferral,
+            filename: "src/index.iced"
+          });
+          fs.readFile(path.join(_this.dir, script), 'utf8', __iced_deferrals.defer({
+            assign_fn: (function() {
+              return function() {
+                err = arguments[0];
+                return data = arguments[1];
+              };
+            })(),
+            lineno: 108
+          }));
+          __iced_deferrals._fulfill();
+        })(function() {
+          var _i, _len, _ref1;
           _ref1 = _this.packages;
           for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
             pack = _ref1[_i];
@@ -249,15 +278,34 @@ Portmanteau = (function() {
               return;
             }
           }
+          if (data.indexOf('define(') === -1) {
+            data = "define(require, exports, module, function(){ " + data + " })";
+          }
           return res.send(data);
         });
       });
     });
     this.server.get('/components/*', function(req, res, next) {
-      var script;
+      var data, deps, err, script, ___iced_passed_deferral, __iced_deferrals, __iced_k;
+      __iced_k = __iced_k_noop;
+      ___iced_passed_deferral = iced.findDeferral(arguments);
       script = req.params[0];
-      return fs.readFile(path.join(_this.dir, 'components', script), 'utf8', function(err, data) {
-        var deps;
+      (function(__iced_k) {
+        __iced_deferrals = new iced.Deferrals(__iced_k, {
+          parent: ___iced_passed_deferral,
+          filename: "src/index.iced"
+        });
+        fs.readFile(path.join(_this.dir, 'components', script), 'utf8', __iced_deferrals.defer({
+          assign_fn: (function() {
+            return function() {
+              err = arguments[0];
+              return data = arguments[1];
+            };
+          })(),
+          lineno: 119
+        }));
+        __iced_deferrals._fulfill();
+      })(function() {
         deps = ['require', 'exports', 'module'];
         res.send("define(" + (JSON.stringify(deps)) + ", function(require, exports, module){var define = undefined; " + data + " ; return exports})");
       });

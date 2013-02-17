@@ -2,11 +2,8 @@ portmanteau = require 'portmanteau'
 stylus = require 'stylus'
 nib = require 'nib'
 express = require 'express'
-jade = require 'jade'
 
 server = express()
-
-await jade.renderFile "#{__dirname}/pages/layout.jade", defer err, layout
 
 compile = (str, path) ->
 	stylus(str)
@@ -23,7 +20,6 @@ app.server.use stylus.middleware
   compile: compile
 app.server.use express.static "#{__dirname}/assets"
 app.load __dirname
-app.layout = (req, res, next, cb) -> cb null, layout
 
-app.listen 3000, ->
+app.listen 8080, ->
   console.log 'server started'
