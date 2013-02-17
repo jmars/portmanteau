@@ -17,11 +17,13 @@
       "express":">=3.x.x",
       "domino":"*",
       "underscore":"",
-      "sockjs":"",
+      "shoe":"",
       "es6-collections":"",
       "request":"",
       "uglify-js":"",
-      "director":""
+      "director":"",
+      "sockjs":"",
+      "ws":""
     },
   "devDependencies":{
     "mocha":"*"

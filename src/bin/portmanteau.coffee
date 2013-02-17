@@ -16,24 +16,27 @@ router = new director.cli.Router
 
 router.on /new\s([\w]+)/i, (name) ->
 	files =
-		'component.json': JSON.stringify
+		'component.json': JSON.stringify({
 			name: name
-			dependencies:
-				'jmars/sockrpc':'*'
-				'jmars/dustjs':'*'
-		'package.json': JSON.stringify
+			scripts: ['main.js']
+			styles: []
+			templates: []
+			dependencies: {}
+		}, null, 2)
+		'package.json': JSON.stringify({
 			author: ''
 			name: name
 			description: ''
 			version: '0.0.1'
 			dependencies:
 				portmanteau: 'https://github.com/jmars/portmanteau/tarball/master'
-				express: ''
-				stylus: ''
-				nib: ''
-				jade: ''
-				'iced-coffee-script': ''
-				'dustjs-linkedin':''
+				express: 'latest'
+				stylus: 'latest'
+				nib: 'latest'
+				'iced-coffee-script': 'latest',
+				shoe: 'latest',
+				ws: 'latest'
+			}, null, 2)
 
 	fs.mkdirSync appdir = "#{cwd}/#{name}"
 	for dir in dirs then fs.mkdirSync "#{appdir}/#{dir}"
