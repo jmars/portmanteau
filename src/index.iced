@@ -79,13 +79,11 @@ class Portmanteau
 
 	setupPackages: (json) ->
 		for name, version of json.dependencies then do =>
-			location = name.replace '/', '-'
-			name = name.split('/')[1]
-			child = require path.join @dir, 'components', location, 'component.json'
+			child = require path.join @dir, 'components', name, 'component.json'
 			subdir = path.dirname child.scripts[0]
 			obj =
 				name: name
-				location: path.join 'components', location, subdir
+				location: path.join 'components', name, subdir
 				main: path.basename child.scripts[0]
 				dependencies: []
 			@packages.push obj
