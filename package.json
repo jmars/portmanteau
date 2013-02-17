@@ -13,16 +13,15 @@
   "author": "Jaye Marshall",
   "license": "BSD",
   "dependencies": {
-    "contextify":"",
-    "express":">=3.x.x",
-    "domino":"https://github.com/jmars/domino/tarball/master",
-    "underscore":"",
-    "sockjs":"",
-    "es6-collections":"",
-    "request":"",
-    "uglify-js":"",
-    "director":"",
-    "eventemitter2":""
+      "contextify":"",
+      "express":">=3.x.x",
+      "domino":"*",
+      "underscore":"",
+      "sockjs":"",
+      "es6-collections":"",
+      "request":"",
+      "uglify-js":"",
+      "director":""
     },
   "devDependencies":{
     "mocha":"*"
